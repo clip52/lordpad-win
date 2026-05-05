@@ -5,4 +5,7 @@
         <file>themes/dark.qss</file>
         <file>themes/dracula.qss</file>
     </qresource>
+    <qresource prefix="/icons">
+        <file>icons/notepadpp-qt.svg</file>
+    </qresource>
 </RCC>

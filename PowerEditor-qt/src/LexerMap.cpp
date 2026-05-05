@@ -1,11 +1,13 @@
 #include "LexerMap.h"
 
 #include <QFileInfo>
+#include <QColor>
 #include <QHash>
 #include <QString>
 #include <QStringList>
 
 #include "ScintillaEdit.h"
+#include "Theme.h"
 
 // Lexilla.h requires Scintilla::ILexer5 to be visible when included as C++.
 // ScintillaEdit.h already pulls in the Scintilla namespace headers (ILexer.h),
@@ -272,6 +274,106 @@ KeywordSet keywordsFor(const QString& requestedName, const QString& effectiveLex
     return ks;
 }
 
+// Per-lexer palette overlay. Theme.cpp applies a generic cpp-oriented palette
+// (style 1=comment, 5=keyword, 6=string, ...). Lexers that use different style
+// indices (HTML, XML, JSON, properties, ...) get their own mapping here.
+namespace {
+
+inline int sciColor(const QColor& c) {
+    return (c.blue() << 16) | (c.green() << 8) | c.red();
+}
+
+struct SyntaxColors {
+    QColor comment, number, keyword, string, charLit, preproc, op, identifier, error;
+};
+
+SyntaxColors paletteForCurrentTheme()
+{
+    const AppTheme t = ThemeManager::current();
+    SyntaxColors s;
+    if (t == AppTheme::Dark) {
+        s.comment    = "#6A9955"; s.number   = "#B5CEA8"; s.keyword = "#569CD6";
+        s.string     = "#CE9178"; s.charLit  = "#D7BA7D"; s.preproc = "#C586C0";
+        s.op         = "#D4D4D4"; s.identifier = "#9CDCFE"; s.error  = "#F44747";
+    } else if (t == AppTheme::Dracula) {
+        s.comment    = "#6272A4"; s.number   = "#BD93F9"; s.keyword = "#FF79C6";
+        s.string     = "#F1FA8C"; s.charLit  = "#F1FA8C"; s.preproc = "#BD93F9";
+        s.op         = "#F8F8F2"; s.identifier = "#50FA7B"; s.error  = "#FF5555";
+    } else { // Light
+        s.comment    = "#008000"; s.number   = "#FF8000"; s.keyword = "#0000FF";
+        s.string     = "#A31515"; s.charLit  = "#A31515"; s.preproc = "#804080";
+        s.op         = "#000080"; s.identifier = "#000000"; s.error  = "#FF0000";
+    }
+    return s;
+}
+
+void applyHtmlPalette(ScintillaEdit* editor, const SyntaxColors& s)
+{
+    auto setFg = [&](int style, const QColor& c) {
+        editor->styleSetFore(style, sciColor(c));
+    };
+    // SCE_H_* indices (Scintilla HTML lexer):
+    setFg(0,  s.identifier);   // DEFAULT (text outside tags)
+    setFg(1,  s.keyword);      // TAG
+    setFg(2,  s.error);        // TAGUNKNOWN
+    setFg(3,  s.identifier);   // ATTRIBUTE
+    setFg(4,  s.number);       // ATTRIBUTEUNKNOWN
+    setFg(5,  s.number);       // NUMBER
+    setFg(6,  s.string);       // DOUBLESTRING
+    setFg(7,  s.string);       // SINGLESTRING
+    setFg(8,  s.identifier);   // OTHER
+    setFg(9,  s.comment);      // COMMENT
+    setFg(10, s.preproc);      // ENTITY
+    setFg(11, s.keyword);      // TAGEND
+    setFg(12, s.preproc);      // XMLSTART
+    setFg(13, s.preproc);      // XMLEND
+    setFg(14, s.error);        // SCRIPT (raw script content marker)
+    setFg(15, s.preproc);      // ASP
+    setFg(16, s.preproc);      // ASPAT
+    setFg(17, s.string);       // CDATA
+    setFg(18, s.preproc);      // QUESTION (PHP, ASP)
+    setFg(19, s.string);       // VALUE
+    setFg(20, s.preproc);      // XCCOMMENT
+}
+
+void applyJsonPalette(ScintillaEdit* editor, const SyntaxColors& s)
+{
+    auto setFg = [&](int style, const QColor& c) {
+        editor->styleSetFore(style, sciColor(c));
+    };
+    // SCE_JSON_* indices:
+    setFg(0,  s.identifier);   // DEFAULT
+    setFg(1,  s.number);       // NUMBER
+    setFg(2,  s.string);       // STRING
+    setFg(3,  s.error);        // STRINGEOL
+    setFg(4,  s.identifier);   // PROPERTYNAME
+    setFg(5,  s.preproc);      // ESCAPESEQUENCE
+    setFg(6,  s.comment);      // LINECOMMENT
+    setFg(7,  s.comment);      // BLOCKCOMMENT
+    setFg(8,  s.op);           // OPERATOR
+    setFg(9,  s.preproc);      // URI
+    setFg(10, s.preproc);      // COMPACTIRI
+    setFg(11, s.keyword);      // KEYWORD (true/false/null)
+    setFg(12, s.keyword);      // LDKEYWORD
+    setFg(13, s.error);        // ERROR
+}
+
+void applyPropsPalette(ScintillaEdit* editor, const SyntaxColors& s)
+{
+    auto setFg = [&](int style, const QColor& c) {
+        editor->styleSetFore(style, sciColor(c));
+    };
+    // SCE_PROPS_* indices (INI/properties files):
+    setFg(0, s.identifier);  // DEFAULT
+    setFg(1, s.comment);     // COMMENT
+    setFg(2, s.keyword);     // SECTION  (e.g. [Section])
+    setFg(3, s.op);          // ASSIGNMENT (=)
+    setFg(4, s.string);      // DEFVAL (value after =)
+    setFg(5, s.identifier);  // KEY
+}
+
+} // namespace
+
 void applyLexerByName(ScintillaEdit* editor, const QString& lexerName)
 {
     if (!editor)
@@ -304,8 +406,21 @@ void applyLexerByName(ScintillaEdit* editor, const QString& lexerName)
     // Set primary + secondary keywords so the lexer can classify tokens. Without
     // this, words like "function" / "if" / "var" stay style 11 (identifier).
     const KeywordSet ks = keywordsFor(lexerName, effective);
-    if (ks.primary && *ks.primary)   editor->setKeyWords(0, ks.primary);
+    if (ks.primary && *ks.primary)     editor->setKeyWords(0, ks.primary);
     if (ks.secondary && *ks.secondary) editor->setKeyWords(1, ks.secondary);
+
+    // Per-lexer style palette overlay (Theme.cpp's generic cpp-oriented colors
+    // are wrong for lexers that use other style indices — HTML/XML, JSON, INI).
+    const SyntaxColors palette = paletteForCurrentTheme();
+    if (effective == QStringLiteral("html") || effective == QStringLiteral("xml")) {
+        applyHtmlPalette(editor, palette);
+    } else if (effective == QStringLiteral("json")) {
+        applyJsonPalette(editor, palette);
+    } else if (effective == QStringLiteral("props")) {
+        applyPropsPalette(editor, palette);
+    }
+    // For cpp/python/css/sql/etc the generic palette in Theme.cpp already
+    // covers the right indices.
 
     editor->colourise(0, -1);
 }

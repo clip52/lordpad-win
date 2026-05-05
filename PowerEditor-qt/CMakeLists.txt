@@ -13,9 +13,10 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Core5Compat LinguistTools Concurrent Xml)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Core5Compat LinguistTools Concurrent Xml PrintSupport)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(UCHARDET REQUIRED IMPORTED_TARGET uchardet)
+pkg_check_modules(HUNSPELL REQUIRED IMPORTED_TARGET hunspell)
 
 set(SCINTILLA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../scintilla")
 set(LEXILLA_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/../lexilla")
@@ -132,17 +133,28 @@ set(APP_SOURCES
     src/SessionManager.cpp
     src/AutoCompleter.cpp
     src/BookmarkManager.cpp
+    src/BraceMatcher.cpp
     src/ColorPickerHelper.cpp
+    src/CrossGroupTabBar.cpp
+    src/EditEnhancements.cpp
     src/EditOperations.cpp
     src/EolMenu.cpp
+    src/ExternalFileWatcher.cpp
     src/JsonXmlFormatter.cpp
     src/MacroRecorder.cpp
+    src/PrintHelper.cpp
+    src/RecentProjects.cpp
+    src/Snippets.cpp
+    src/SpellChecker.cpp
+    src/WhitespaceView.cpp
     src/panels/FunctionListPanel.cpp
     src/panels/DocumentMapPanel.cpp
     src/panels/FileBrowserPanel.cpp
     src/panels/ExecOutputPanel.cpp
     src/dialogs/BookmarkDialog.cpp
+    src/dialogs/HashDialog.cpp
     src/dialogs/MacroDialog.cpp
+    src/dialogs/SnippetsDialog.cpp
     src/dialogs/WordCountDialog.cpp
     src/dialogs/FindReplaceDialog.cpp
     src/dialogs/GoToLineDialog.cpp
@@ -170,17 +182,28 @@ set(APP_HEADERS
     src/SessionManager.h
     src/AutoCompleter.h
     src/BookmarkManager.h
+    src/BraceMatcher.h
     src/ColorPickerHelper.h
+    src/CrossGroupTabBar.h
+    src/EditEnhancements.h
     src/EditOperations.h
     src/EolMenu.h
+    src/ExternalFileWatcher.h
     src/JsonXmlFormatter.h
     src/MacroRecorder.h
+    src/PrintHelper.h
+    src/RecentProjects.h
+    src/Snippets.h
+    src/SpellChecker.h
+    src/WhitespaceView.h
     src/panels/FunctionListPanel.h
     src/panels/DocumentMapPanel.h
     src/panels/FileBrowserPanel.h
     src/panels/ExecOutputPanel.h
     src/dialogs/BookmarkDialog.h
+    src/dialogs/HashDialog.h
     src/dialogs/MacroDialog.h
+    src/dialogs/SnippetsDialog.h
     src/dialogs/WordCountDialog.h
     src/dialogs/FindReplaceDialog.h
     src/dialogs/GoToLineDialog.h
@@ -210,7 +233,8 @@ target_link_libraries(notepadpp-qt PRIVATE
     scintilla-qt
     lexilla-static
     PkgConfig::UCHARDET
-    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Concurrent Qt6::Xml
+    PkgConfig::HUNSPELL
+    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Concurrent Qt6::Xml Qt6::PrintSupport
 )
 
 # Install

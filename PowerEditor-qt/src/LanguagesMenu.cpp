@@ -43,7 +43,15 @@ QMenu* LanguagesMenu::createMenu(QWidget* menuParent) {
     addLanguageAction(m_menu, tr("Plain Text"), QString());
 
     // --- Full alphabetical list of all languages ---
+    // The six "favorites" pinned at the top are ALSO included here so they
+    // appear under their initial-letter submenu (per user request).
     std::vector<std::pair<QString, QString>> langs = {
+        { tr("C#"),               QStringLiteral("cpp")        },
+        { tr("Python"),           QStringLiteral("python")     },
+        { tr("JavaScript"),       QStringLiteral("javascript") },
+        { tr("PHP"),              QStringLiteral("phpscript")  },
+        { tr("MySQL"),            QStringLiteral("sql")        },
+        { tr("JSON"),             QStringLiteral("json")       },
         { tr("Bash"),             QStringLiteral("bash")       },
         { tr("Batch"),            QStringLiteral("batch")      },
         { tr("C / C++"),          QStringLiteral("cpp")        },

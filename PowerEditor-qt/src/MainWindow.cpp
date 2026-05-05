@@ -18,6 +18,16 @@
 #include "dialogs/BookmarkDialog.h"
 #include "dialogs/MacroDialog.h"
 #include "dialogs/WordCountDialog.h"
+#include "BraceMatcher.h"
+#include "EditEnhancements.h"
+#include "ExternalFileWatcher.h"
+#include "PrintHelper.h"
+#include "RecentProjects.h"
+#include "Snippets.h"
+#include "SpellChecker.h"
+#include "WhitespaceView.h"
+#include "dialogs/HashDialog.h"
+#include "dialogs/SnippetsDialog.h"
 #include "panels/FunctionListPanel.h"
 #include "panels/DocumentMapPanel.h"
 #include "panels/FileBrowserPanel.h"
@@ -45,8 +55,12 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSize>
 #include <QStatusBar>
+#include <QStyle>
 #include <QTabWidget>
+#include <QToolBar>
+#include <QToolButton>
 
 namespace {
 AppTheme themeFromSettings(const Settings& s) {
@@ -80,15 +94,30 @@ MainWindow::MainWindow(QWidget* parent)
       m_wordCountDialog(nullptr),
       m_macroDialog(nullptr),
       m_bookmarkDialog(nullptr),
+      m_spellChecker(nullptr),
+      m_externalWatcher(nullptr),
+      m_braceMatcher(nullptr),
+      m_whitespaceView(nullptr),
+      m_snippets(nullptr),
+      m_recentProjects(nullptr),
+      m_editEnhance(nullptr),
+      m_hashDialog(nullptr),
+      m_snippetsDialog(nullptr),
       m_statusPosition(nullptr),
       m_statusEncoding(nullptr),
       m_statusEol(nullptr) {
     setWindowTitle(tr("Notepad++ Qt"));
-    setWindowIcon(QIcon::fromTheme("notepadpp-qt"));
+    {
+        // Same fallback chain as main(): prefer themed icon, fall back to resource.
+        QIcon icon = QIcon::fromTheme(QStringLiteral("notepadpp-qt"));
+        if (icon.isNull()) icon = QIcon(QStringLiteral(":/icons/notepadpp-qt.svg"));
+        setWindowIcon(icon);
+    }
 
     createCentralWidget();
     createActions();
     createMenus();
+    createToolBar();
     createStatusBar();
 
     m_findDialog = new FindReplaceDialog(nullptr, this);
@@ -128,6 +157,19 @@ MainWindow::MainWindow(QWidget* parent)
     m_bookmarks     = new BookmarkManager(this);
     m_macros        = new MacroRecorder(this);
     m_eolMenu       = new EolMenu(this);
+
+    // M5 helpers
+    m_spellChecker    = new SpellChecker(this);
+    m_externalWatcher = new ExternalFileWatcher(this);
+    m_braceMatcher    = new BraceMatcher(this);
+    m_whitespaceView  = new WhitespaceView(this);
+    m_snippets        = new Snippets(this);
+    m_recentProjects  = new RecentProjects(this);
+    m_editEnhance     = new EditEnhancements(this);
+    connect(m_externalWatcher, &ExternalFileWatcher::fileChangedExternally,
+            this, &MainWindow::onExternalFileChanged);
+    connect(m_externalWatcher, &ExternalFileWatcher::fileRemovedExternally,
+            this, &MainWindow::onExternalFileRemoved);
 
     const Settings& s = Settings::instance();
     if (!s.windowGeometry().isEmpty()) restoreGeometry(s.windowGeometry());
@@ -253,10 +295,21 @@ void MainWindow::createMenus() {
     auto* mFile = mb->addMenu(tr("&File"));
     mFile->addAction(m_actNew);
     mFile->addAction(m_actOpen);
+    auto mkF = [this](QMenu* m, const QString& t, const QKeySequence& sc, auto slot) {
+        auto* a = m->addAction(t);
+        if (!sc.isEmpty()) a->setShortcut(sc);
+        connect(a, &QAction::triggered, this, slot);
+        return a;
+    };
+    mkF(mFile, tr("Open &Folder..."), QKeySequence(Qt::CTRL | Qt::Key_K), &MainWindow::onFileOpenFolder);
     m_menuRecent = mFile->addMenu(tr("Open &Recent"));
     mFile->addSeparator();
     mFile->addAction(m_actSave);
     mFile->addAction(m_actSaveAs);
+    mkF(mFile, tr("&Reload from Disk"),  QKeySequence(),                       &MainWindow::onFileReloadFromDisk);
+    mFile->addSeparator();
+    mkF(mFile, tr("&Print..."),          QKeySequence::Print,                  &MainWindow::onFilePrint);
+    mkF(mFile, tr("Print Pre&view..."),  QKeySequence(),                       &MainWindow::onFilePrintPreview);
     mFile->addSeparator();
     mFile->addAction(m_actClose);
     mFile->addSeparator();
@@ -319,6 +372,8 @@ void MainWindow::createMenus() {
     mBmk->addSeparator();
     mkS(mBmk, tr("Bookmark List..."),   QKeySequence(),                                  &MainWindow::onBookmarkList);
     mkS(mBmk, tr("Clear All Bookmarks"),QKeySequence(),                                  &MainWindow::onBookmarkClearAll);
+    mSearch->addSeparator();
+    mkS(mSearch, tr("Goto &Matching Brace"), QKeySequence(Qt::CTRL | Qt::Key_B),         &MainWindow::onSearchGotoMatchingBrace);
 
     auto* mView = mb->addMenu(tr("&View"));
     auto* mTheme = mView->addMenu(tr("&Theme"));
@@ -333,6 +388,22 @@ void MainWindow::createMenus() {
     mView->addAction(m_actSplitVertical);
     mView->addAction(m_actUnsplit);
     mView->addAction(m_actMoveTabToOtherGroup);
+    mView->addSeparator();
+    auto mkV = [this](QMenu* m, const QString& t, const QKeySequence& sc, auto slot) {
+        auto* a = m->addAction(t);
+        if (!sc.isEmpty()) a->setShortcut(sc);
+        a->setCheckable(true);
+        connect(a, &QAction::triggered, this, slot);
+        return a;
+    };
+    auto* aWs = mkV(mView, tr("Show Whitespace"),     QKeySequence(),  &MainWindow::onViewToggleWhitespace);
+    auto* aEol = mkV(mView, tr("Show End of Line"),   QKeySequence(),  &MainWindow::onViewToggleEol);
+    auto* aIg = mkV(mView, tr("Show Indent Guides"),  QKeySequence(),  &MainWindow::onViewToggleIndentGuides);
+    if (m_whitespaceView) {
+        aWs->setChecked(m_whitespaceView->isWhitespaceVisible());
+        aEol->setChecked(m_whitespaceView->isEolVisible());
+        aIg->setChecked(m_whitespaceView->areIndentGuidesVisible());
+    }
     mView->addSeparator();
     auto* mPanels = mView->addMenu(tr("&Panels"));
     mPanels->addAction(m_actToggleFunctionList);
@@ -368,6 +439,12 @@ void MainWindow::createMenus() {
     mkT(mFmt,   tr("XML: Minify"),       QKeySequence(),                       &MainWindow::onToolsXmlMinify);
     mkT(mTools, tr("Pick &Color..."),    QKeySequence(),                       &MainWindow::onToolsPickColor);
     mkT(mTools, tr("&Macros..."),        QKeySequence(),                       &MainWindow::onToolsMacroDialog);
+    mkT(mTools, tr("&Snippets..."),      QKeySequence(),                       &MainWindow::onToolsSnippets);
+    mkT(mTools, tr("Check&sums..."),     QKeySequence(),                       &MainWindow::onToolsHash);
+    auto* aSpell = mTools->addAction(tr("Spell &Check"));
+    aSpell->setCheckable(true);
+    if (m_spellChecker) aSpell->setChecked(m_spellChecker->isEnabled());
+    connect(aSpell, &QAction::triggered, this, &MainWindow::onToolsToggleSpellCheck);
     mTools->addSeparator();
     mTools->addAction(m_actFindInFiles);
     mTools->addAction(m_actRunCommand);
@@ -378,6 +455,60 @@ void MainWindow::createMenus() {
 
     auto* mHelp = mb->addMenu(tr("&Help"));
     mHelp->addAction(m_actAbout);
+}
+
+void MainWindow::createToolBar() {
+    // Helper: prefer freedesktop themed icon (Adwaita/Breeze/Papirus all expose
+    // these names); fall back to QStyle's bundled standardIcon so the toolbar
+    // is never blank even on minimal icon themes.
+    auto themed = [this](const char* name, QStyle::StandardPixmap fallback) -> QIcon {
+        QIcon i = QIcon::fromTheme(QString::fromLatin1(name));
+        if (i.isNull()) i = style()->standardIcon(fallback);
+        return i;
+    };
+
+    auto* tb = addToolBar(tr("Main Toolbar"));
+    tb->setObjectName(QStringLiteral("MainToolBar"));   // needed by saveState/restoreState
+    tb->setMovable(true);
+    tb->setIconSize(QSize(20, 20));
+    tb->setToolButtonStyle(Qt::ToolButtonIconOnly);
+
+    // Set icons on the actions we already created in createActions(). Qt picks them
+    // up automatically wherever the action appears (menu + toolbar share state).
+    m_actNew      ->setIcon(themed("document-new",          QStyle::SP_FileIcon));
+    m_actOpen     ->setIcon(themed("document-open",         QStyle::SP_DirOpenIcon));
+    m_actSave     ->setIcon(themed("document-save",         QStyle::SP_DialogSaveButton));
+    m_actSaveAs   ->setIcon(themed("document-save-as",      QStyle::SP_DialogSaveButton));
+    m_actCut      ->setIcon(themed("edit-cut",              QStyle::SP_FileLinkIcon));
+    m_actCopy     ->setIcon(themed("edit-copy",             QStyle::SP_FileIcon));
+    m_actPaste    ->setIcon(themed("edit-paste",            QStyle::SP_FileIcon));
+    m_actUndo     ->setIcon(themed("edit-undo",             QStyle::SP_ArrowBack));
+    m_actRedo     ->setIcon(themed("edit-redo",             QStyle::SP_ArrowForward));
+    m_actFind     ->setIcon(themed("edit-find",             QStyle::SP_FileDialogContentsView));
+    m_actReplace  ->setIcon(themed("edit-find-replace",     QStyle::SP_FileDialogContentsView));
+    m_actFindInFiles->setIcon(themed("system-search",       QStyle::SP_FileDialogContentsView));
+    m_actRunCommand ->setIcon(themed("system-run",          QStyle::SP_MediaPlay));
+    m_actCommandPalette->setIcon(themed("edit-find",        QStyle::SP_TitleBarMenuButton));
+    m_actClose    ->setIcon(themed("window-close",          QStyle::SP_DialogCloseButton));
+
+    tb->addAction(m_actNew);
+    tb->addAction(m_actOpen);
+    tb->addAction(m_actSave);
+    tb->addAction(m_actSaveAs);
+    tb->addSeparator();
+    tb->addAction(m_actCut);
+    tb->addAction(m_actCopy);
+    tb->addAction(m_actPaste);
+    tb->addSeparator();
+    tb->addAction(m_actUndo);
+    tb->addAction(m_actRedo);
+    tb->addSeparator();
+    tb->addAction(m_actFind);
+    tb->addAction(m_actReplace);
+    tb->addAction(m_actFindInFiles);
+    tb->addSeparator();
+    tb->addAction(m_actRunCommand);
+    tb->addAction(m_actCommandPalette);
 }
 
 void MainWindow::createStatusBar() {
@@ -559,6 +690,7 @@ void MainWindow::loadFileIntoTab(EditorTab* tab, const QString& path) {
     Settings::instance().addRecentFile(path);
     Settings::instance().save();
     rebuildRecentFilesMenu();
+    if (m_externalWatcher) m_externalWatcher->watch(path);
 
     setTabTitle(tab, tab->tabTitle());
     setTabTooltip(tab, path);
@@ -572,6 +704,7 @@ bool MainWindow::saveTab(EditorTab* tab) {
     if (tab->filePath().isEmpty()) return saveTabAs(tab);
 
     QByteArray bytes = tab->editor()->getText(tab->editor()->textLength() + 1);
+    if (m_externalWatcher) m_externalWatcher->notifyOurWrite(tab->filePath());
     QString error;
     if (!FileIO::writeFile(tab->filePath(), bytes, &error)) {
         QMessageBox::warning(this, tr("Save failed"), error);
@@ -892,6 +1025,10 @@ void MainWindow::onMultiViewCurrentChanged(EditorTab* tab) {
         m_eolMenu->setActiveEditor(sci);
         if (sci) m_eolMenu->syncCurrentMode();
     }
+    if (m_braceMatcher)   m_braceMatcher->setActiveEditor(sci);
+    if (m_spellChecker)   m_spellChecker->setActiveEditor(sci);
+    if (m_editEnhance)    m_editEnhance->setActiveEditor(sci);
+    if (m_whitespaceView && sci) m_whitespaceView->applyTo(sci);
     updateWindowTitle();
     updateStatusBar();
 }
@@ -1013,6 +1150,114 @@ void MainWindow::onToolsMacroDialog() {
     m_macroDialog->show();
     m_macroDialog->raise();
     m_macroDialog->activateWindow();
+}
+
+// ---------------------------------------------------------------------------
+// M5 slot implementations
+// ---------------------------------------------------------------------------
+void MainWindow::onFilePrint() {
+    if (auto* sci = SCI_OR_NULL) PrintHelper::printDocument(sci, this);
+}
+void MainWindow::onFilePrintPreview() {
+    if (auto* sci = SCI_OR_NULL) PrintHelper::previewDocument(sci, this);
+}
+void MainWindow::onFileReloadFromDisk() {
+    auto* t = currentTab();
+    if (!t || t->filePath().isEmpty()) return;
+    QString err;
+    if (!EditEnhancements::reloadFromDisk(t->editor(), t->filePath(), &err)) {
+        QMessageBox::warning(this, tr("Reload failed"), err);
+        return;
+    }
+    t->setModified(false);
+    applyEditorPreferences(t);
+    applyThemeAndLexer(t);
+}
+void MainWindow::onFileOpenFolder() {
+    const QString folder = QFileDialog::getExistingDirectory(this, tr("Open Folder"));
+    if (folder.isEmpty()) return;
+    if (m_recentProjects) m_recentProjects->use(folder);
+    if (m_fileBrowserPanel) {
+        m_fileBrowserPanel->setRootPath(folder);
+        m_fileBrowserPanel->show();
+        if (m_actToggleFileBrowser) m_actToggleFileBrowser->setChecked(true);
+    }
+}
+
+void MainWindow::onSearchGotoMatchingBrace() {
+    if (m_braceMatcher) m_braceMatcher->gotoMatchingBrace();
+}
+
+void MainWindow::onViewToggleWhitespace() {
+    auto* a = qobject_cast<QAction*>(sender());
+    if (!m_whitespaceView || !a) return;
+    m_whitespaceView->setWhitespaceVisible(a->isChecked());
+    const int n = m_multiView->tabCount();
+    for (int i = 0; i < n; ++i) if (auto* t = tabAt(i)) m_whitespaceView->applyTo(t->editor());
+}
+void MainWindow::onViewToggleEol() {
+    auto* a = qobject_cast<QAction*>(sender());
+    if (!m_whitespaceView || !a) return;
+    m_whitespaceView->setEolVisible(a->isChecked());
+    const int n = m_multiView->tabCount();
+    for (int i = 0; i < n; ++i) if (auto* t = tabAt(i)) m_whitespaceView->applyTo(t->editor());
+}
+void MainWindow::onViewToggleIndentGuides() {
+    auto* a = qobject_cast<QAction*>(sender());
+    if (!m_whitespaceView || !a) return;
+    m_whitespaceView->setIndentGuidesVisible(a->isChecked());
+    const int n = m_multiView->tabCount();
+    for (int i = 0; i < n; ++i) if (auto* t = tabAt(i)) m_whitespaceView->applyTo(t->editor());
+}
+
+void MainWindow::onToolsHash() {
+    if (!m_hashDialog) m_hashDialog = new HashDialog(this);
+    if (auto* t = currentTab()) {
+        const QByteArray sel = t->editor()->getSelText();
+        if (!sel.isEmpty()) m_hashDialog->load(sel, tr("selection (%1 bytes)").arg(sel.size()));
+        else                m_hashDialog->load(t->editor()->getText(t->editor()->textLength() + 1), t->displayPath());
+    }
+    m_hashDialog->show();
+    m_hashDialog->raise();
+    m_hashDialog->activateWindow();
+}
+
+void MainWindow::onToolsSnippets() {
+    if (!m_snippetsDialog) m_snippetsDialog = new SnippetsDialog(m_snippets, this);
+    m_snippetsDialog->show();
+    m_snippetsDialog->raise();
+    m_snippetsDialog->activateWindow();
+}
+
+void MainWindow::onToolsToggleSpellCheck() {
+    auto* a = qobject_cast<QAction*>(sender());
+    if (!m_spellChecker || !a) return;
+    m_spellChecker->setEnabled(a->isChecked());
+    if (auto* sci = SCI_OR_NULL) m_spellChecker->setActiveEditor(sci);
+}
+
+void MainWindow::onExternalFileChanged(const QString& path) {
+    int idx = findTabByPath(path);
+    if (idx < 0) return;
+    auto* t = tabAt(idx);
+    if (!t) return;
+    const auto ans = QMessageBox::question(this, tr("File changed externally"),
+        tr("'%1' was modified outside the editor.\nReload from disk?").arg(path),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+    if (ans == QMessageBox::Yes) {
+        QString err;
+        if (EditEnhancements::reloadFromDisk(t->editor(), path, &err)) {
+            t->setModified(false);
+            applyEditorPreferences(t);
+            applyThemeAndLexer(t);
+        } else {
+            QMessageBox::warning(this, tr("Reload failed"), err);
+        }
+    }
+}
+void MainWindow::onExternalFileRemoved(const QString& path) {
+    QMessageBox::warning(this, tr("File removed"),
+        tr("'%1' no longer exists on disk.").arg(path));
 }
 
 #undef WITH_SCI_DO

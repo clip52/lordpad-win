@@ -29,6 +29,15 @@ class WordCountDialog;
 class MacroRecorder;
 class MacroDialog;
 class EolMenu;
+class SpellChecker;
+class ExternalFileWatcher;
+class BraceMatcher;
+class WhitespaceView;
+class Snippets;
+class SnippetsDialog;
+class RecentProjects;
+class EditEnhancements;
+class HashDialog;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -122,6 +131,21 @@ private slots:
     void onToolsPickColor();
     void onToolsMacroDialog();
 
+    // M5
+    void onFilePrint();
+    void onFilePrintPreview();
+    void onFileReloadFromDisk();
+    void onFileOpenFolder();
+    void onSearchGotoMatchingBrace();
+    void onViewToggleWhitespace();
+    void onViewToggleEol();
+    void onViewToggleIndentGuides();
+    void onToolsHash();
+    void onToolsSnippets();
+    void onToolsToggleSpellCheck();
+    void onExternalFileChanged(const QString& path);
+    void onExternalFileRemoved(const QString& path);
+
     void onHelpAbout();
 
     void onMultiViewCurrentChanged(EditorTab* tab);
@@ -142,6 +166,7 @@ private:
 
     void createActions();
     void createMenus();
+    void createToolBar();
     void createStatusBar();
     void createCentralWidget();
 
@@ -184,6 +209,17 @@ private:
     WordCountDialog*  m_wordCountDialog;
     MacroDialog*      m_macroDialog;
     BookmarkDialog*   m_bookmarkDialog;
+
+    // M5 helpers
+    SpellChecker*        m_spellChecker;
+    ExternalFileWatcher* m_externalWatcher;
+    BraceMatcher*        m_braceMatcher;
+    WhitespaceView*      m_whitespaceView;
+    Snippets*            m_snippets;
+    RecentProjects*      m_recentProjects;
+    EditEnhancements*    m_editEnhance;
+    HashDialog*          m_hashDialog;
+    SnippetsDialog*      m_snippetsDialog;
 
     QLabel* m_statusPosition;
     QLabel* m_statusEncoding;

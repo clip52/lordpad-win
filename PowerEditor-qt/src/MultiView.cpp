@@ -7,8 +7,20 @@
 #include <QHBoxLayout>
 #include <QFocusEvent>
 #include <QEvent>
+#include <QIcon>
 
 #include "EditorTab.h"
+#include "CrossGroupTabBar.h"
+
+namespace {
+// QTabWidget::setTabBar is protected; expose it via a using-declaration so we can
+// install a CrossGroupTabBar at construction time.
+class TabGroupWidget : public QTabWidget {
+public:
+    using QTabWidget::QTabWidget;
+    using QTabWidget::setTabBar;
+};
+}
 
 MultiView::MultiView(QWidget* parent)
     : QWidget(parent)
@@ -29,11 +41,36 @@ MultiView::MultiView(QWidget* parent)
 
 QTabWidget* MultiView::createGroup()
 {
-    auto* tw = new QTabWidget(m_splitter);
+    auto* tw = new TabGroupWidget(m_splitter);
+    auto* bar = new CrossGroupTabBar(tw);
+    tw->setTabBar(bar);
     tw->setTabsClosable(m_tabsClosable);
     tw->setMovable(m_tabsMovable);
     tw->setDocumentMode(true);
     wireGroup(tw);
+    // Cross-group drop: move the dragged tab from sourceBar's parent QTabWidget
+    // into THIS group at the drop position.
+    connect(bar, &CrossGroupTabBar::tabDroppedFromOther, this,
+            [this, dstBar = bar](CrossGroupTabBar* sourceBar, int sourceIndex, int insertIndex) {
+        if (!sourceBar || sourceBar == dstBar) return;
+        auto* srcTw = qobject_cast<QTabWidget*>(sourceBar->parentWidget());
+        auto* dstTw = qobject_cast<QTabWidget*>(dstBar->parentWidget());
+        if (!srcTw || !dstTw || srcTw == dstTw) return;
+        if (sourceIndex < 0 || sourceIndex >= srcTw->count()) return;
+
+        QWidget* w = srcTw->widget(sourceIndex);
+        const QString title = srcTw->tabText(sourceIndex);
+        const QIcon icon = srcTw->tabIcon(sourceIndex);
+        const QString tip = srcTw->tabToolTip(sourceIndex);
+        srcTw->removeTab(sourceIndex);
+        if (!w) return;
+        const int clamped = qBound(0, insertIndex, dstTw->count());
+        const int newIdx = dstTw->insertTab(clamped, w, icon, title);
+        dstTw->setTabToolTip(newIdx, tip);
+        dstTw->setCurrentIndex(newIdx);
+        setCurrentGroup(dstTw);
+        if (auto* w2 = dstTw->currentWidget()) w2->setFocus();
+    });
     return tw;
 }
 

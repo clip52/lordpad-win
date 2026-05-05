@@ -359,6 +359,175 @@
     <message><source>CSS &amp;Preview...</source><translation>&amp;Pré-visualização CSS...</translation></message>
     <message><source>&amp;CSV Table View...</source><translation>Visualização de Tabela &amp;CSV...</translation></message>
     <message><source>Compare with file...</source><translation>Comparar com arquivo...</translation></message>
+    <message><source>&amp;Markdown Preview...</source><translation>Pré-visualização &amp;Markdown...</translation></message>
+    <message><source>&amp;Hex Viewer...</source><translation>Visualizador &amp;Hex...</translation></message>
+    <message><source>Find in &amp;Files...</source><translation>Localizar em &amp;Arquivos...</translation></message>
+    <message><source>Command &amp;Palette...</source><translation>&amp;Paleta de Comandos...</translation></message>
+    <message><source>&amp;Run Command...</source><translation>E&amp;xecutar Comando...</translation></message>
+    <message><source>Function &amp;List Panel</source><translation>Painel de Lista de &amp;Funções</translation></message>
+    <message><source>Document &amp;Map Panel</source><translation>Painel de &amp;Mapa do Documento</translation></message>
+    <message><source>File &amp;Browser Panel</source><translation>Painel do &amp;Navegador de Arquivos</translation></message>
+    <message><source>&amp;Exec Output Panel</source><translation>Painel de Saída de &amp;Execução</translation></message>
+    <message><source>&amp;Panels</source><translation>&amp;Painéis</translation></message>
+    <message><source>Convert &amp;Case</source><translation>Converter &amp;Maiúsc/Minúsc</translation></message>
+    <message><source>UPPER CASE</source><translation>MAIÚSCULAS</translation></message>
+    <message><source>lower case</source><translation>minúsculas</translation></message>
+    <message><source>Title Case</source><translation>Capitalizar Palavras</translation></message>
+    <message><source>&amp;Sort Lines</source><translation>&amp;Ordenar Linhas</translation></message>
+    <message><source>Ascending</source><translation>Crescente</translation></message>
+    <message><source>Descending</source><translation>Decrescente</translation></message>
+    <message><source>Unique</source><translation>Únicos</translation></message>
+    <message><source>&amp;Trim Trailing Whitespace</source><translation>&amp;Remover Espaços ao Final</translation></message>
+    <message><source>&amp;Duplicate Line</source><translation>&amp;Duplicar Linha</translation></message>
+    <message><source>Move Line &amp;Up</source><translation>Mover Linha para &amp;Cima</translation></message>
+    <message><source>Move Line &amp;Down</source><translation>Mover Linha para &amp;Baixo</translation></message>
+    <message><source>Tabs to Spaces</source><translation>Tabulações para Espaços</translation></message>
+    <message><source>Spaces to Tabs</source><translation>Espaços para Tabulações</translation></message>
+    <message><source>&amp;Bookmarks</source><translation>&amp;Marcadores</translation></message>
+    <message><source>Toggle Bookmark</source><translation>Alternar Marcador</translation></message>
+    <message><source>Next Bookmark</source><translation>Próximo Marcador</translation></message>
+    <message><source>Previous Bookmark</source><translation>Marcador Anterior</translation></message>
+    <message><source>Bookmark List...</source><translation>Lista de Marcadores...</translation></message>
+    <message><source>Clear All Bookmarks</source><translation>Limpar Todos os Marcadores</translation></message>
+    <message><source>&amp;Word Count...</source><translation>&amp;Contagem de Palavras...</translation></message>
+    <message><source>&amp;Format</source><translation>&amp;Formato</translation></message>
+    <message><source>JSON: Pretty</source><translation>JSON: Formatar</translation></message>
+    <message><source>JSON: Minify</source><translation>JSON: Minificar</translation></message>
+    <message><source>XML: Pretty</source><translation>XML: Formatar</translation></message>
+    <message><source>XML: Minify</source><translation>XML: Minificar</translation></message>
+    <message><source>Pick &amp;Color...</source><translation>Escolher &amp;Cor...</translation></message>
+    <message><source>&amp;Macros...</source><translation>&amp;Macros...</translation></message>
+    <message><source>&amp;Snippets...</source><translation>&amp;Trechos de Código...</translation></message>
+    <message><source>Check&amp;sums...</source><translation>&amp;Somas de Verificação...</translation></message>
+    <message><source>Spell &amp;Check</source><translation>&amp;Verificar Ortografia</translation></message>
+    <message><source>Open &amp;Folder...</source><translation>Abrir &amp;Pasta...</translation></message>
+    <message><source>&amp;Reload from Disk</source><translation>&amp;Recarregar do Disco</translation></message>
+    <message><source>&amp;Print...</source><translation>&amp;Imprimir...</translation></message>
+    <message><source>Print Pre&amp;view...</source><translation>&amp;Pré-visualizar Impressão...</translation></message>
+    <message><source>Goto &amp;Matching Brace</source><translation>Ir para Chave/Parêntese &amp;Correspondente</translation></message>
+    <message><source>Show Whitespace</source><translation>Mostrar Espaços em Branco</translation></message>
+    <message><source>Show End of Line</source><translation>Mostrar Fim de Linha</translation></message>
+    <message><source>Show Indent Guides</source><translation>Mostrar Guias de Indentação</translation></message>
+    <message><source>Open Folder</source><translation>Abrir Pasta</translation></message>
+    <message><source>Main Toolbar</source><translation>Barra de Ferramentas Principal</translation></message>
+    <message><source>File changed externally</source><translation>Arquivo alterado externamente</translation></message>
+    <message><source>'%1' was modified outside the editor.
+Reload from disk?</source><translation>'%1' foi modificado fora do editor.
+Recarregar do disco?</translation></message>
+    <message><source>File removed</source><translation>Arquivo removido</translation></message>
+    <message><source>'%1' no longer exists on disk.</source><translation>'%1' não existe mais no disco.</translation></message>
+    <message><source>Reload failed</source><translation>Falha ao recarregar</translation></message>
+    <message><source>selection (%1 bytes)</source><translation>seleção (%1 bytes)</translation></message>
+    <message><source>JSON Pretty</source><translation>JSON Formatado</translation></message>
+    <message><source>JSON Minify</source><translation>JSON Minificado</translation></message>
+    <message><source>XML Pretty</source><translation>XML Formatado</translation></message>
+    <message><source>XML Minify</source><translation>XML Minificado</translation></message>
+    <message><source>Parse error: %1</source><translation>Erro de análise: %1</translation></message>
+</context>
+<context>
+    <name>WordCountDialog</name>
+    <message><source>Word Count</source><translation>Contagem de Palavras</translation></message>
+    <message><source>Word Count — %1</source><translation>Contagem de Palavras — %1</translation></message>
+    <message><source>Document</source><translation>Documento</translation></message>
+    <message><source>Selection</source><translation>Seleção</translation></message>
+    <message><source>Characters (with whitespace)</source><translation>Caracteres (com espaços)</translation></message>
+    <message><source>Characters (no whitespace)</source><translation>Caracteres (sem espaços)</translation></message>
+    <message><source>Words</source><translation>Palavras</translation></message>
+    <message><source>Lines</source><translation>Linhas</translation></message>
+    <message><source>Paragraphs</source><translation>Parágrafos</translation></message>
+    <message><source>Refresh</source><translation>Atualizar</translation></message>
+</context>
+<context>
+    <name>HashDialog</name>
+    <message><source>Checksums</source><translation>Somas de Verificação</translation></message>
+    <message><source>Checksums — %1</source><translation>Somas de Verificação — %1</translation></message>
+    <message><source>Recompute</source><translation>Recalcular</translation></message>
+    <message><source>Bytes hashed: %1</source><translation>Bytes calculados: %1</translation></message>
+    <message><source>(empty)</source><translation>(vazio)</translation></message>
+</context>
+<context>
+    <name>BookmarkDialog</name>
+    <message><source>Bookmarks</source><translation>Marcadores</translation></message>
+    <message><source>Clear All</source><translation>Limpar Todos</translation></message>
+    <message><source>(no bookmarks)</source><translation>(sem marcadores)</translation></message>
+    <message><source>Line %1: %2</source><translation>Linha %1: %2</translation></message>
+</context>
+<context>
+    <name>MacroDialog</name>
+    <message><source>Macros</source><translation>Macros</translation></message>
+    <message><source>Record</source><translation>Gravar</translation></message>
+    <message><source>Stop</source><translation>Parar</translation></message>
+    <message><source>Play</source><translation>Reproduzir</translation></message>
+    <message><source>Save As...</source><translation>Salvar Como...</translation></message>
+    <message><source>Load</source><translation>Carregar</translation></message>
+    <message><source>Delete</source><translation>Excluir</translation></message>
+    <message><source>(idle)</source><translation>(ocioso)</translation></message>
+    <message><source>Recording: %1 steps</source><translation>Gravando: %1 passos</translation></message>
+</context>
+<context>
+    <name>SnippetsDialog</name>
+    <message><source>Snippets</source><translation>Trechos de Código</translation></message>
+    <message><source>Language</source><translation>Linguagem</translation></message>
+    <message><source>Trigger</source><translation>Gatilho</translation></message>
+    <message><source>Body</source><translation>Corpo</translation></message>
+    <message><source>Description</source><translation>Descrição</translation></message>
+    <message><source>Save</source><translation>Salvar</translation></message>
+</context>
+<context>
+    <name>FileBrowserPanel</name>
+    <message><source>File Browser</source><translation>Navegador de Arquivos</translation></message>
+    <message><source>Open Folder...</source><translation>Abrir Pasta...</translation></message>
+    <message><source>Up</source><translation>Acima</translation></message>
+    <message><source>Home</source><translation>Início</translation></message>
+    <message><source>Refresh</source><translation>Atualizar</translation></message>
+    <message><source>Filter (e.g. *.cpp)</source><translation>Filtro (ex. *.cpp)</translation></message>
+</context>
+<context>
+    <name>FunctionListPanel</name>
+    <message><source>Function List</source><translation>Lista de Funções</translation></message>
+    <message><source>Filter...</source><translation>Filtrar...</translation></message>
+</context>
+<context>
+    <name>DocumentMapPanel</name>
+    <message><source>Document Map</source><translation>Mapa do Documento</translation></message>
+</context>
+<context>
+    <name>ExecOutputPanel</name>
+    <message><source>Exec Output</source><translation>Saída de Execução</translation></message>
+    <message><source>CD...</source><translation>Diretório...</translation></message>
+    <message><source>Run</source><translation>Executar</translation></message>
+    <message><source>Clear</source><translation>Limpar</translation></message>
+    <message><source>Command (Enter to run)</source><translation>Comando (Enter para executar)</translation></message>
+</context>
+<context>
+    <name>FindInFilesDialog</name>
+    <message><source>Find in Files</source><translation>Localizar em Arquivos</translation></message>
+    <message><source>Search</source><translation>Pesquisar</translation></message>
+    <message><source>Clear results</source><translation>Limpar resultados</translation></message>
+    <message><source>Browse...</source><translation>Procurar...</translation></message>
+    <message><source>Find what:</source><translation>Localizar:</translation></message>
+    <message><source>In folder:</source><translation>Na pasta:</translation></message>
+    <message><source>File filter:</source><translation>Filtro de arquivo:</translation></message>
+    <message><source>Match case</source><translation>Diferenciar maiúsc./minúsc.</translation></message>
+    <message><source>Whole word</source><translation>Palavra inteira</translation></message>
+    <message><source>Regular expression</source><translation>Expressão regular</translation></message>
+    <message><source>Include hidden</source><translation>Incluir ocultos</translation></message>
+    <message><source>Follow symlinks</source><translation>Seguir links simbólicos</translation></message>
+    <message><source>File</source><translation>Arquivo</translation></message>
+    <message><source>Line</source><translation>Linha</translation></message>
+    <message><source>Match</source><translation>Correspondência</translation></message>
+    <message><source>Close</source><translation>Fechar</translation></message>
+</context>
+<context>
+    <name>EolMenu</name>
+    <message><source>&amp;End-of-Line</source><translation>&amp;Fim-de-Linha</translation></message>
+    <message><source>Set Mode</source><translation>Definir Modo</translation></message>
+    <message><source>LF (Unix / macOS)</source><translation>LF (Unix / macOS)</translation></message>
+    <message><source>CRLF (Windows)</source><translation>CRLF (Windows)</translation></message>
+    <message><source>CR (classic Mac)</source><translation>CR (Mac clássico)</translation></message>
+    <message><source>Convert Document to LF</source><translation>Converter Documento para LF</translation></message>
+    <message><source>Convert Document to CRLF</source><translation>Converter Documento para CRLF</translation></message>
+    <message><source>Convert Document to CR</source><translation>Converter Documento para CR</translation></message>
 </context>
 <context>
     <name>ComparePanel</name>
