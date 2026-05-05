@@ -1,0 +1,38 @@
+/* Dracula theme — palette from https://draculatheme.com/contribute */
+QMainWindow, QDialog { background-color: #282A36; }
+
+QMenuBar { background-color: #21222C; color: #F8F8F2; border: 0; }
+QMenuBar::item:selected { background-color: #44475A; }
+
+QMenu { background-color: #21222C; color: #F8F8F2; border: 1px solid #44475A; }
+QMenu::item:selected { background-color: #BD93F9; color: #282A36; }
+QMenu::separator { height: 1px; background: #44475A; margin: 4px 8px; }
+
+QToolBar { background-color: #282A36; border: 0; }
+
+QStatusBar { background-color: #21222C; color: #F8F8F2; }
+QStatusBar QLabel { color: #F8F8F2; }
+
+QTabWidget::pane { border: 1px solid #44475A; background: #282A36; }
+QTabBar::tab { background: #21222C; color: #6272A4; padding: 6px 12px; border: 0; }
+QTabBar::tab:selected { background: #282A36; color: #F8F8F2; border-bottom: 2px solid #FF79C6; }
+QTabBar::tab:hover:!selected { background: #44475A; color: #F8F8F2; }
+
+QPushButton { background-color: #44475A; color: #F8F8F2; border: 1px solid #6272A4; padding: 4px 12px; border-radius: 3px; }
+QPushButton:hover { background-color: #6272A4; }
+QPushButton:pressed { background-color: #BD93F9; color: #282A36; }
+
+QLineEdit, QSpinBox, QComboBox { background-color: #21222C; color: #F8F8F2; border: 1px solid #44475A; padding: 2px 6px; }
+QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border-color: #BD93F9; }
+
+QCheckBox, QRadioButton { color: #F8F8F2; }
+QCheckBox::indicator:checked { background: #BD93F9; }
+
+QScrollBar:vertical, QScrollBar:horizontal { background: #21222C; border: 0; }
+QScrollBar::handle { background: #44475A; border-radius: 4px; min-height: 20px; min-width: 20px; }
+QScrollBar::handle:hover { background: #6272A4; }
+QScrollBar::add-line, QScrollBar::sub-line { background: none; border: 0; height: 0; width: 0; }
+
+QHeaderView::section { background-color: #21222C; color: #F8F8F2; border: 0; padding: 4px; }
+
+QToolTip { background-color: #44475A; color: #F8F8F2; border: 1px solid #6272A4; }

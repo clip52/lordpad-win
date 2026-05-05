@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Notepad++ Qt
+GenericName=Text Editor
+Comment=Native Linux Qt6 port of Notepad++
+TryExec=notepadpp-qt
+Exec=notepadpp-qt %F
+Icon=notepadpp-qt
+Terminal=false
+Categories=Development;TextEditor;Utility;
+MimeType=text/plain;text/x-c;text/x-c++;text/x-python;text/x-shellscript;application/json;application/xml;text/markdown;
+StartupNotify=true
