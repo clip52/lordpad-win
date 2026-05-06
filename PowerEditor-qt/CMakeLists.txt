@@ -147,6 +147,14 @@ set(APP_SOURCES
     src/Snippets.cpp
     src/SpellChecker.cpp
     src/WhitespaceView.cpp
+    src/TabExtras.cpp
+    src/UrlHyperlink.cpp
+    src/CodeFormatter.cpp
+    src/GitStatusService.cpp
+    src/ThemePack.cpp
+    src/CrashRecovery.cpp
+    src/Workspace.cpp
+    src/OutlineRegex.cpp
     src/panels/FunctionListPanel.cpp
     src/panels/DocumentMapPanel.cpp
     src/panels/FileBrowserPanel.cpp
@@ -196,6 +204,14 @@ set(APP_HEADERS
     src/Snippets.h
     src/SpellChecker.h
     src/WhitespaceView.h
+    src/TabExtras.h
+    src/UrlHyperlink.h
+    src/CodeFormatter.h
+    src/GitStatusService.h
+    src/ThemePack.h
+    src/CrashRecovery.h
+    src/Workspace.h
+    src/OutlineRegex.h
     src/panels/FunctionListPanel.h
     src/panels/DocumentMapPanel.h
     src/panels/FileBrowserPanel.h

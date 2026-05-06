@@ -42,6 +42,14 @@
 #include "dialogs/HexViewer.h"
 #include "dialogs/FindInFilesDialog.h"
 #include "dialogs/CommandPalette.h"
+#include "TabExtras.h"
+#include "UrlHyperlink.h"
+#include "CodeFormatter.h"
+#include "GitStatusService.h"
+#include "ThemePack.h"
+#include "CrashRecovery.h"
+#include "Workspace.h"
+#include "OutlineRegex.h"
 
 #include <ScintillaEdit.h>
 
@@ -103,6 +111,13 @@ MainWindow::MainWindow(QWidget* parent)
       m_editEnhance(nullptr),
       m_hashDialog(nullptr),
       m_snippetsDialog(nullptr),
+      m_tabExtras(nullptr),
+      m_codeFormatter(nullptr),
+      m_gitStatus(nullptr),
+      m_crashRecovery(nullptr),
+      m_workspace(nullptr),
+      m_statusGit(nullptr),
+      m_menuRecentWorkspaces(nullptr),
       m_statusPosition(nullptr),
       m_statusEncoding(nullptr),
       m_statusEol(nullptr) {
@@ -170,6 +185,48 @@ MainWindow::MainWindow(QWidget* parent)
             this, &MainWindow::onExternalFileChanged);
     connect(m_externalWatcher, &ExternalFileWatcher::fileRemovedExternally,
             this, &MainWindow::onExternalFileRemoved);
+
+    // M6 helpers
+    m_tabExtras     = new TabExtras(this);
+    m_codeFormatter = new CodeFormatter(this);
+    m_gitStatus     = new GitStatusService(this);
+    m_crashRecovery = new CrashRecovery(this);
+    m_workspace     = new Workspace(this);
+    connect(m_gitStatus, &GitStatusService::statusReady,
+            this, &MainWindow::onGitStatusReady);
+    if (m_multiView) {
+        if (auto* g = m_multiView->primaryGroup())   m_tabExtras->attachTabWidget(g);
+        if (auto* g = m_multiView->secondaryGroup()) m_tabExtras->attachTabWidget(g);
+    }
+    m_crashRecovery->start();
+
+    // Oferece restaurar buffers órfãos de uma execução anterior que travou.
+    {
+        const auto orphans = m_crashRecovery->findOrphanRecoveries();
+        for (const auto& r : orphans) {
+            const QString label = r.originalPath.isEmpty() ? tr("(sem título)") : r.originalPath;
+            const auto btn = QMessageBox::question(this, tr("Recuperação"),
+                tr("Recuperar conteúdo de \"%1\" da sessão anterior?").arg(label),
+                QMessageBox::Yes | QMessageBox::No);
+            if (btn == QMessageBox::Yes) {
+                QFile f(r.recoveryFile);
+                if (f.open(QIODevice::ReadOnly)) {
+                    QByteArray all = f.readAll();
+                    int hdrEnd = all.indexOf("---END-META---\n");
+                    QByteArray body = (hdrEnd >= 0) ? all.mid(hdrEnd + 15) : all;
+                    auto* tab = new EditorTab(this);
+                    applyEditorPreferences(tab);
+                    applyThemeAndLexer(tab);
+                    connectTabSignals(tab);
+                    m_multiView->addTab(tab, tab->tabTitle());
+                    tab->editor()->setText(body.constData());
+                    tab->setModified(true);
+                    setActiveTab(tab);
+                }
+            }
+            m_crashRecovery->consume(r);
+        }
+    }
 
     const Settings& s = Settings::instance();
     if (!s.windowGeometry().isEmpty()) restoreGeometry(s.windowGeometry());
@@ -311,6 +368,13 @@ void MainWindow::createMenus() {
     mkF(mFile, tr("&Print..."),          QKeySequence::Print,                  &MainWindow::onFilePrint);
     mkF(mFile, tr("Print Pre&view..."),  QKeySequence(),                       &MainWindow::onFilePrintPreview);
     mFile->addSeparator();
+    auto* mWorkspace = mFile->addMenu(tr("&Workspace"));
+    mkF(mWorkspace, tr("Abrir Workspace..."), QKeySequence(),                                  &MainWindow::onWorkspaceOpen);
+    mkF(mWorkspace, tr("Salvar Workspace"),    QKeySequence(),                                  &MainWindow::onWorkspaceSave);
+    mkF(mWorkspace, tr("Salvar Workspace Como..."), QKeySequence(),                            &MainWindow::onWorkspaceSaveAs);
+    m_menuRecentWorkspaces = mWorkspace->addMenu(tr("Workspaces Recentes"));
+    rebuildRecentWorkspacesMenu();
+    mFile->addSeparator();
     mFile->addAction(m_actClose);
     mFile->addSeparator();
     mFile->addAction(m_actExit);
@@ -351,6 +415,8 @@ void MainWindow::createMenus() {
     mkE(mEdit, tr("Tabs to Spaces"),            QKeySequence(),                       &MainWindow::onEditTabsToSpaces);
     mkE(mEdit, tr("Spaces to Tabs"),            QKeySequence(),                       &MainWindow::onEditSpacesToTabs);
     mEdit->addSeparator();
+    mkE(mEdit, tr("&Formatar Código"),          QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_F), &MainWindow::onToolsCodeFormat);
+    mEdit->addSeparator();
     if (m_eolMenu) mEdit->addMenu(m_eolMenu->createMenu(this));
 
     auto* mSearch = mb->addMenu(tr("&Search"));
@@ -380,6 +446,23 @@ void MainWindow::createMenus() {
     mTheme->addAction(m_actThemeLight);
     mTheme->addAction(m_actThemeDark);
     mTheme->addAction(m_actThemeDracula);
+    mTheme->addSeparator();
+    auto* mPack = mTheme->addMenu(tr("Theme Pack"));
+    auto* packGroup = new QActionGroup(this);
+    packGroup->setExclusive(true);
+    auto addPack = [&](ThemePackId id){
+        QAction* a = mPack->addAction(ThemePack::displayName(id));
+        a->setCheckable(true);
+        a->setChecked(ThemePack::loaded() == id);
+        a->setData(static_cast<int>(id));
+        packGroup->addAction(a);
+        connect(a, &QAction::triggered, this, &MainWindow::onThemePackSelected);
+    };
+    addPack(ThemePackId::None);
+    addPack(ThemePackId::SolarizedLight);
+    addPack(ThemePackId::SolarizedDark);
+    addPack(ThemePackId::Monokai);
+    addPack(ThemePackId::Nord);
     mView->addSeparator();
     mView->addAction(m_actToggleLineNumbers);
     mView->addAction(m_actToggleWordWrap);
@@ -403,6 +486,17 @@ void MainWindow::createMenus() {
         aWs->setChecked(m_whitespaceView->isWhitespaceVisible());
         aEol->setChecked(m_whitespaceView->isEolVisible());
         aIg->setChecked(m_whitespaceView->areIndentGuidesVisible());
+    }
+    mView->addSeparator();
+    if (m_tabExtras) {
+        auto* mTab = mView->addMenu(tr("A&bas"));
+        mTab->addAction(m_tabExtras->makePinAction(this));
+        mTab->addAction(m_tabExtras->makeLockAction(this));
+        mTab->addAction(m_tabExtras->makeColorAction(this));
+        mTab->addSeparator();
+        mTab->addAction(m_tabExtras->makeCloseOthersAction(this));
+        mTab->addAction(m_tabExtras->makeCloseToRightAction(this));
+        mTab->addAction(m_tabExtras->makeCloseToLeftAction(this));
     }
     mView->addSeparator();
     auto* mPanels = mView->addMenu(tr("&Panels"));
@@ -515,7 +609,10 @@ void MainWindow::createStatusBar() {
     m_statusPosition = new QLabel(tr("Ln 1, Col 1"), this);
     m_statusEncoding = new QLabel(tr("UTF-8"), this);
     m_statusEol = new QLabel(tr("LF"), this);
+    m_statusGit = new QLabel(QString(), this);
+    m_statusGit->setToolTip(tr("Status do Git (branch / arquivo)"));
 
+    statusBar()->addPermanentWidget(m_statusGit);
     statusBar()->addPermanentWidget(m_statusPosition);
     statusBar()->addPermanentWidget(m_statusEncoding);
     statusBar()->addPermanentWidget(m_statusEol);
@@ -558,6 +655,20 @@ void MainWindow::connectTabSignals(EditorTab* tab) {
     connect(tab, &EditorTab::modificationChanged, this, &MainWindow::onCurrentTabModified);
     connect(tab, &EditorTab::filePathChanged, this, &MainWindow::onCurrentTabFilePathChanged);
     connect(tab, &EditorTab::cursorPositionChanged, this, &MainWindow::onCursorPositionChanged);
+    if (tab->editor()) UrlHyperlink::installFor(tab->editor());
+    registerTabForRecovery(tab);
+}
+
+void MainWindow::registerTabForRecovery(EditorTab* tab) {
+    if (!m_crashRecovery || !tab || !tab->editor()) return;
+    const int bufferId = static_cast<int>(reinterpret_cast<qintptr>(tab) & 0x7FFFFFFF);
+    QPointer<EditorTab> safe(tab);
+    m_crashRecovery->registerBuffer(bufferId, tab->filePath(), QStringLiteral("UTF-8"),
+        [safe]() -> QByteArray {
+            if (!safe || !safe->editor()) return {};
+            auto* sci = safe->editor();
+            return sci->getText(sci->textLength() + 1);
+        });
 }
 
 void MainWindow::applyEditorPreferences(EditorTab* tab) {
@@ -1029,6 +1140,9 @@ void MainWindow::onMultiViewCurrentChanged(EditorTab* tab) {
     if (m_spellChecker)   m_spellChecker->setActiveEditor(sci);
     if (m_editEnhance)    m_editEnhance->setActiveEditor(sci);
     if (m_whitespaceView && sci) m_whitespaceView->applyTo(sci);
+    if (m_gitStatus && tab && !tab->filePath().isEmpty())
+        m_gitStatus->queryStatus(tab->filePath());
+    else if (m_statusGit) m_statusGit->setText(QString());
     updateWindowTitle();
     updateStatusBar();
 }
@@ -1051,12 +1165,13 @@ void MainWindow::onCurrentTabModified(bool /*modified*/) {
     if (t == currentTab()) updateWindowTitle();
 }
 
-void MainWindow::onCurrentTabFilePathChanged(const QString& /*path*/) {
+void MainWindow::onCurrentTabFilePathChanged(const QString& path) {
     auto* t = qobject_cast<EditorTab*>(sender());
     if (!t) return;
     setTabTitle(t, t->tabTitle());
     setTabTooltip(t, t->displayPath());
     if (t == currentTab()) updateWindowTitle();
+    if (m_gitStatus && !path.isEmpty()) m_gitStatus->queryStatus(path);
 }
 
 void MainWindow::onCursorPositionChanged(int line, int column) {
@@ -1288,5 +1403,151 @@ void MainWindow::closeEvent(QCloseEvent* event) {
     Settings::instance().setWindowGeometry(saveGeometry());
     Settings::instance().setWindowState(saveState());
     Settings::instance().save();
+    if (m_crashRecovery) m_crashRecovery->shutdownClean();
     event->accept();
+}
+
+// ---------------------------------------------------------------------------
+// M6 slots
+// ---------------------------------------------------------------------------
+void MainWindow::onToolsCodeFormat() {
+    if (!m_codeFormatter) return;
+    auto* t = currentTab();
+    if (!t || !t->editor()) return;
+    m_codeFormatter->formatActiveEditor(t->editor());
+}
+
+void MainWindow::onThemePackSelected() {
+    auto* a = qobject_cast<QAction*>(sender());
+    if (!a) return;
+    const auto id = static_cast<ThemePackId>(a->data().toInt());
+    ThemePack::applyToApp(qApp, id);
+    const Settings& s = Settings::instance();
+    const int n = m_multiView->tabCount();
+    for (int i = 0; i < n; ++i) {
+        if (auto* tab = tabAt(i); tab && tab->editor()) {
+            ThemePack::applyToEditor(tab->editor(), id, s.fontFamily(), s.fontSize());
+        }
+    }
+    ThemePack::save(id);
+}
+
+void MainWindow::onGitStatusReady(const QString& path, const GitStatus& status) {
+    if (!m_statusGit) return;
+    auto* t = currentTab();
+    if (!t || t->filePath() != path) return;
+    if (status.state == GitStatus::State::NotInRepo) {
+        m_statusGit->setText(QString());
+        return;
+    }
+    QString glyph = GitStatusService::stateGlyph(status.state);
+    QString text = QString("git: %1 %2").arg(glyph, status.branch);
+    if (status.ahead)  text += QString(" ↑%1").arg(status.ahead);
+    if (status.behind) text += QString(" ↓%1").arg(status.behind);
+    m_statusGit->setText(text);
+}
+
+void MainWindow::onWorkspaceOpen() {
+    const QString path = QFileDialog::getOpenFileName(this, tr("Abrir Workspace"), QString(),
+                                                      tr("Workspaces (*.nppproj.json)"));
+    if (path.isEmpty()) return;
+    if (!m_workspace->load(path)) {
+        QMessageBox::warning(this, tr("Workspace"), m_workspace->lastError());
+        return;
+    }
+    applyWorkspaceData();
+    rebuildRecentWorkspacesMenu();
+}
+
+void MainWindow::onWorkspaceSave() {
+    if (!m_workspace) return;
+    QString path = m_workspace->currentPath();
+    if (path.isEmpty()) { onWorkspaceSaveAs(); return; }
+    auto& d = m_workspace->mutableData();
+    d.openFiles.clear();
+    const int n = m_multiView->tabCount();
+    for (int i = 0; i < n; ++i) {
+        if (auto* t = tabAt(i); t && !t->filePath().isEmpty()) {
+            WorkspaceFile wf;
+            wf.path = t->filePath();
+            wf.active = (t == currentTab());
+            d.openFiles.append(wf);
+        }
+    }
+    if (!m_workspace->save(path)) {
+        QMessageBox::warning(this, tr("Workspace"), m_workspace->lastError());
+    }
+    rebuildRecentWorkspacesMenu();
+}
+
+void MainWindow::onWorkspaceSaveAs() {
+    QString path = QFileDialog::getSaveFileName(this, tr("Salvar Workspace"),
+                                                QStringLiteral("workspace.nppproj.json"),
+                                                tr("Workspaces (*.nppproj.json)"));
+    if (path.isEmpty()) return;
+    auto& d = m_workspace->mutableData();
+    d.openFiles.clear();
+    const int n = m_multiView->tabCount();
+    for (int i = 0; i < n; ++i) {
+        if (auto* t = tabAt(i); t && !t->filePath().isEmpty()) {
+            WorkspaceFile wf;
+            wf.path = t->filePath();
+            wf.active = (t == currentTab());
+            d.openFiles.append(wf);
+        }
+    }
+    if (!m_workspace->save(path)) {
+        QMessageBox::warning(this, tr("Workspace"), m_workspace->lastError());
+    }
+    rebuildRecentWorkspacesMenu();
+}
+
+void MainWindow::onRecentWorkspaceTriggered() {
+    auto* a = qobject_cast<QAction*>(sender());
+    if (!a) return;
+    const QString path = a->data().toString();
+    if (path.isEmpty()) return;
+    if (!m_workspace->load(path)) {
+        QMessageBox::warning(this, tr("Workspace"), m_workspace->lastError());
+        return;
+    }
+    applyWorkspaceData();
+    rebuildRecentWorkspacesMenu();
+}
+
+void MainWindow::rebuildRecentWorkspacesMenu() {
+    if (!m_menuRecentWorkspaces) return;
+    m_menuRecentWorkspaces->clear();
+    const QStringList recent = Workspace::recentWorkspaces();
+    if (recent.isEmpty()) {
+        auto* a = m_menuRecentWorkspaces->addAction(tr("(vazio)"));
+        a->setEnabled(false);
+        return;
+    }
+    for (const QString& p : recent) {
+        auto* a = m_menuRecentWorkspaces->addAction(QFileInfo(p).fileName() + "  " + p);
+        a->setData(p);
+        connect(a, &QAction::triggered, this, &MainWindow::onRecentWorkspaceTriggered);
+    }
+    m_menuRecentWorkspaces->addSeparator();
+    auto* clr = m_menuRecentWorkspaces->addAction(tr("Limpar lista"));
+    connect(clr, &QAction::triggered, this, [this]{
+        Workspace::clearRecent();
+        rebuildRecentWorkspacesMenu();
+    });
+}
+
+void MainWindow::applyWorkspaceData() {
+    if (!m_workspace) return;
+    const auto& d = m_workspace->data();
+    EditorTab* lastActive = nullptr;
+    for (const WorkspaceFile& wf : d.openFiles) {
+        if (wf.path.isEmpty()) continue;
+        openFile(wf.path);
+        if (wf.active) {
+            const int idx = findTabByPath(wf.path);
+            if (idx >= 0) lastActive = tabAt(idx);
+        }
+    }
+    if (lastActive) setActiveTab(lastActive);
 }

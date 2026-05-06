@@ -19,6 +19,7 @@
 #include <QList>
 
 #include "ScintillaEdit.h"
+#include "../OutlineRegex.h"
 
 namespace {
 
@@ -187,40 +188,42 @@ void FunctionListPanel::refresh()
         return;
     }
 
-    const QString text       = QString::fromUtf8(utf8);
-    const QStringList lines  = text.split(QLatin1Char('\n'));
-    const QList<QRegularExpression> patterns = patternsFor(m_lexerName);
+    const QString text = QString::fromUtf8(utf8);
+    QList<OutlineSymbol> symbols = OutlineRegex::parse(text, m_lexerName);
 
-    int lineNo = 0;
-    for (const QString& rawLine : lines) {
-        ++lineNo; // 1-based
-
-        if (rawLine.size() > 500) {
-            // skip very long lines to avoid catastrophic regex on minified code
-            continue;
-        }
-
-        // Strip trailing \r if present (CRLF endings).
-        QString line = rawLine;
-        if (line.endsWith(QLatin1Char('\r'))) {
-            line.chop(1);
-        }
-
-        for (const QRegularExpression& re : patterns) {
-            QRegularExpressionMatch m = re.match(line);
-            if (m.hasMatch()) {
-                const QString name = m.captured(1);
-                if (name.isEmpty()) continue;
-
-                const QString display =
-                    QStringLiteral("%1  (line %2)").arg(name).arg(lineNo);
-                auto* item = new QStandardItem(display);
-                item->setData(lineNo, Qt::UserRole);
-                item->setEditable(false);
-                m_model->appendRow(item);
-                break; // first match wins for this line
+    if (symbols.isEmpty()) {
+        // Fallback to legacy regex parser if OutlineRegex doesn't support this lexer.
+        const QStringList lines = text.split(QLatin1Char('\n'));
+        const QList<QRegularExpression> patterns = patternsFor(m_lexerName);
+        int lineNo = 0;
+        for (const QString& rawLine : lines) {
+            ++lineNo;
+            if (rawLine.size() > 500) continue;
+            QString line = rawLine;
+            if (line.endsWith(QLatin1Char('\r'))) line.chop(1);
+            for (const QRegularExpression& re : patterns) {
+                QRegularExpressionMatch m = re.match(line);
+                if (m.hasMatch()) {
+                    const QString name = m.captured(1);
+                    if (name.isEmpty()) continue;
+                    OutlineSymbol s;
+                    s.name = name;
+                    s.kind = QStringLiteral("function");
+                    s.line = lineNo;
+                    symbols.append(s);
+                    break;
+                }
             }
         }
+    }
+
+    for (const OutlineSymbol& sym : symbols) {
+        const QString display =
+            QStringLiteral("%1  [%2]  (linha %3)").arg(sym.name, sym.kind).arg(sym.line);
+        auto* item = new QStandardItem(display);
+        item->setData(sym.line, Qt::UserRole);
+        item->setEditable(false);
+        m_model->appendRow(item);
     }
 
     if (m_model->rowCount() == 0) {

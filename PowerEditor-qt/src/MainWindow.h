@@ -38,6 +38,12 @@ class SnippetsDialog;
 class RecentProjects;
 class EditEnhancements;
 class HashDialog;
+class TabExtras;
+class CodeFormatter;
+class GitStatusService;
+class CrashRecovery;
+class Workspace;
+struct GitStatus;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -146,6 +152,15 @@ private slots:
     void onExternalFileChanged(const QString& path);
     void onExternalFileRemoved(const QString& path);
 
+    // M6 slots
+    void onToolsCodeFormat();
+    void onWorkspaceOpen();
+    void onWorkspaceSave();
+    void onWorkspaceSaveAs();
+    void onRecentWorkspaceTriggered();
+    void onThemePackSelected();
+    void onGitStatusReady(const QString& path, const GitStatus& status);
+
     void onHelpAbout();
 
     void onMultiViewCurrentChanged(EditorTab* tab);
@@ -181,6 +196,9 @@ private:
     void updateStatusBar();
     void rebuildRecentFilesMenu();
     void connectTabSignals(EditorTab* tab);
+    void registerTabForRecovery(EditorTab* tab);
+    void rebuildRecentWorkspacesMenu();
+    void applyWorkspaceData();
 
     MultiView* m_multiView;
     LanguagesMenu* m_languagesMenu;
@@ -220,6 +238,15 @@ private:
     EditEnhancements*    m_editEnhance;
     HashDialog*          m_hashDialog;
     SnippetsDialog*      m_snippetsDialog;
+
+    // M6 helpers
+    TabExtras*           m_tabExtras;
+    CodeFormatter*       m_codeFormatter;
+    GitStatusService*    m_gitStatus;
+    CrashRecovery*       m_crashRecovery;
+    Workspace*           m_workspace;
+    QLabel*              m_statusGit;
+    QMenu*               m_menuRecentWorkspaces;
 
     QLabel* m_statusPosition;
     QLabel* m_statusEncoding;
