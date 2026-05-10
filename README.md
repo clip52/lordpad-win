@@ -1,6 +1,6 @@
 # LordPad
 
-[![Release](https://img.shields.io/github/v/release/clip52/notepad-fedora?include_prereleases)](../../releases)
+[![Release](https://img.shields.io/github/v/release/clip52/lordpad?include_prereleases)](../../releases)
 [![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 [![Linux](https://img.shields.io/badge/platform-Linux%20Qt6-orange)](#)
 
