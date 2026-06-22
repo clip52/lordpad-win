@@ -76,6 +76,7 @@ cmd <(other_cmd)       # process substitution
 ## Job control
 ```bash
 cmd &                  # background
+cmd > /dev/null 2>&1 & # background sem mensagens de debug na tela
 jobs                   # listar
 fg %1                  # foreground job 1
 bg %1                  # resume in bg
