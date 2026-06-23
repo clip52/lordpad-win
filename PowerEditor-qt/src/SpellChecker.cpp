@@ -9,7 +9,11 @@
 #include <QTimer>
 #include <QByteArray>
 
+#ifdef LORDPAD_NO_HUNSPELL
+#include "compat/HunspellStub.hxx"
+#else
 #include <hunspell/hunspell.hxx>
+#endif
 #include "ScintillaEdit.h"
 
 #include <algorithm>

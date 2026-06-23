@@ -16,6 +16,11 @@
 
 #include <vector>
 
+#ifdef _WIN32
+// O terminal embutido depende de forkpty(3)/pty.h, que não existem no Windows.
+// Fica stubado até um backend ConPTY ser portado; a classe segue existindo para
+// não exigir cirurgia no MainWindow.
+#else
 extern "C" {
 #include <fcntl.h>
 #include <pty.h>
@@ -25,6 +30,7 @@ extern "C" {
 #include <errno.h>
 #include <sys/wait.h>
 }
+#endif
 
 TerminalPanel::TerminalPanel(QWidget* parent)
     : QDockWidget(tr("Terminal"), parent)
@@ -93,6 +99,13 @@ void TerminalPanel::startShell(const QString& shellPath)
 void TerminalPanel::startCommand(const QString& executable, const QStringList& args,
                                  const QString& windowTitle)
 {
+#ifdef _WIN32
+    if (!windowTitle.isEmpty()) setWindowTitle(windowTitle);
+    appendOutput(QByteArray("[Terminal embutido ainda não suportado no Windows "
+                            "(ConPTY pendente). Use o painel CLI/Shell.]\n"));
+    Q_UNUSED(executable);
+    Q_UNUSED(args);
+#else
     if (m_masterFd >= 0) stopShell();
 
     int master = -1;
@@ -130,10 +143,12 @@ void TerminalPanel::startCommand(const QString& executable, const QStringList& a
 
     if (!windowTitle.isEmpty()) setWindowTitle(windowTitle);
     appendOutput(("$ " + executable + " " + args.join(' ') + "\n").toUtf8());
+#endif
 }
 
 void TerminalPanel::stopShell()
 {
+#ifndef _WIN32
     if (m_notifier) { m_notifier->setEnabled(false); m_notifier->deleteLater(); }
     if (m_masterFd >= 0) { ::close(m_masterFd); m_masterFd = -1; }
     if (m_childPid > 0) {
@@ -144,14 +159,19 @@ void TerminalPanel::stopShell()
         ::waitpid(m_childPid, &status, WNOHANG);
         m_childPid = -1;
     }
+#endif
 }
 
 void TerminalPanel::sendLine(const QString& text)
 {
+#ifdef _WIN32
+    Q_UNUSED(text);
+#else
     if (m_masterFd < 0) return;
     QByteArray buf = text.toUtf8();
     buf.append('\n');
     ::write(m_masterFd, buf.constData(), buf.size());
+#endif
 }
 
 void TerminalPanel::onSubmit()
@@ -169,6 +189,7 @@ void TerminalPanel::onRestartClicked()  { stopShell(); startShell(); }
 
 void TerminalPanel::onPtyReadable()
 {
+#ifndef _WIN32
     if (m_masterFd < 0) return;
     char chunk[4096];
     while (true) {
@@ -190,6 +211,7 @@ void TerminalPanel::onPtyReadable()
             return;
         }
     }
+#endif
 }
 
 void TerminalPanel::appendOutput(const QByteArray& bytes)

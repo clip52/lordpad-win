@@ -13,10 +13,14 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
 extern "C" {
 #include <sys/sysinfo.h>
 #include <unistd.h>
 }
+#endif
 
 SysInfoPanel::SysInfoPanel(QWidget* parent) : QDockWidget(tr("Sistema"), parent)
 {
@@ -57,6 +61,21 @@ void SysInfoPanel::onRefresh()
     lines << QStringLiteral("Host:     %1").arg(QSysInfo::machineHostName());
     lines << QStringLiteral("CPUs:     %1 (idealThread=%2)").arg(QThread::idealThreadCount()).arg(QThread::idealThreadCount());
 
+#ifdef _WIN32
+    MEMORYSTATUSEX ms;
+    ms.dwLength = sizeof(ms);
+    if (GlobalMemoryStatusEx(&ms)) {
+        const auto mb = [](DWORDLONG bytes) { return double(bytes) / (1024.0 * 1024.0); };
+        lines << QStringLiteral("");
+        lines << QStringLiteral("== Memória ==");
+        lines << QStringLiteral("Total:    %1 MiB").arg(mb(ms.ullTotalPhys), 0, 'f', 0);
+        lines << QStringLiteral("Livre:    %1 MiB").arg(mb(ms.ullAvailPhys), 0, 'f', 0);
+        lines << QStringLiteral("Swap:     %1 / %2 MiB livres")
+                     .arg(mb(ms.ullAvailPageFile), 0, 'f', 0)
+                     .arg(mb(ms.ullTotalPageFile), 0, 'f', 0);
+        lines << QStringLiteral("Em uso:   %1%").arg(ms.dwMemoryLoad);
+    }
+#else
     struct sysinfo si;
     if (sysinfo(&si) == 0) {
         const auto mb = [&](unsigned long bytes) { return double(bytes) * si.mem_unit / (1024.0 * 1024.0); };
@@ -73,6 +92,7 @@ void SysInfoPanel::onRefresh()
                      .arg(si.loads[1] / 65536.0, 0, 'f', 2)
                      .arg(si.loads[2] / 65536.0, 0, 'f', 2);
     }
+#endif
 
     lines << QStringLiteral("");
     lines << QStringLiteral("== Discos (montados) ==");

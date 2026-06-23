@@ -16,7 +16,11 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <signal.h>
+#endif
 
 namespace {
 
@@ -177,7 +181,14 @@ void SystemMonitorPanel::onKill()
     auto* it = m_procs->currentItem();
     if (!it) return;
     const int pid = it->data(0, Qt::DisplayRole).toInt();
+#ifdef _WIN32
+    if (pid > 0) {
+        HANDLE h = ::OpenProcess(PROCESS_TERMINATE, FALSE, static_cast<DWORD>(pid));
+        if (h) { ::TerminateProcess(h, 1); ::CloseHandle(h); }
+    }
+#else
     if (pid > 0) ::kill(pid, SIGTERM);
+#endif
     QTimer::singleShot(500, this, &SystemMonitorPanel::refresh);
 }
 

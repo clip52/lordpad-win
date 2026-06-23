@@ -14,9 +14,14 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Core5Compat LinguistTools Concurrent Xml PrintSupport Network Sql)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(UCHARDET REQUIRED IMPORTED_TARGET uchardet)
-pkg_check_modules(HUNSPELL REQUIRED IMPORTED_TARGET hunspell)
+find_package(PkgConfig)
+# uchardet e hunspell são opcionais. No build Linux nativo eles existem e são
+# usados; no cross-build Windows (MinGW) não há pacote, então caem em fallback
+# (Qt p/ detecção de encoding; stub no-op p/ corretor — compat/HunspellStub.hxx).
+if(PkgConfig_FOUND)
+    pkg_check_modules(UCHARDET IMPORTED_TARGET uchardet)
+    pkg_check_modules(HUNSPELL IMPORTED_TARGET hunspell)
+endif()
 
 # M9: Python plugin host (optional). When the embed dev headers are absent we
 # build the rest of the editor without the plugin subsystem; the host class
@@ -489,7 +494,14 @@ set(TS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/translations/lordpad_pt_BR.ts")
 
 set(APP_RESOURCES resources/lordpad.qrc)
 
-qt_add_executable(lordpad ${APP_SOURCES} ${APP_HEADERS} ${APP_RESOURCES})
+# Windows: recurso .rc (ícone do .exe + version info), compilado por windres.
+set(APP_PLATFORM_SOURCES)
+if(WIN32)
+    enable_language(RC)
+    list(APPEND APP_PLATFORM_SOURCES resources/lordpad.rc)
+endif()
+
+qt_add_executable(lordpad ${APP_SOURCES} ${APP_HEADERS} ${APP_RESOURCES} ${APP_PLATFORM_SOURCES})
 qt_add_translations(lordpad
     TS_FILES ${TS_FILES}
     RESOURCE_PREFIX "/translations"
@@ -499,10 +511,21 @@ target_include_directories(lordpad PRIVATE src src/dialogs)
 target_link_libraries(lordpad PRIVATE
     scintilla-qt
     lexilla-static
-    PkgConfig::UCHARDET
-    PkgConfig::HUNSPELL
     Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Concurrent Qt6::Xml Qt6::PrintSupport Qt6::Network Qt6::Sql
 )
+
+# Liga uchardet/hunspell quando presentes; senão define flags que ativam os
+# fallbacks no código (FileIO.cpp e SpellChecker.cpp).
+if(UCHARDET_FOUND)
+    target_link_libraries(lordpad PRIVATE PkgConfig::UCHARDET)
+else()
+    target_compile_definitions(lordpad PRIVATE LORDPAD_NO_UCHARDET=1)
+endif()
+if(HUNSPELL_FOUND)
+    target_link_libraries(lordpad PRIVATE PkgConfig::HUNSPELL)
+else()
+    target_compile_definitions(lordpad PRIVATE LORDPAD_NO_HUNSPELL=1)
+endif()
 
 # M9: link Python embed when available, define a compile flag so the host
 # code can stub out without it.
@@ -514,6 +537,11 @@ endif()
 # M9: TerminalPanel uses forkpty(3); on Linux this lives in libutil.
 if(UNIX AND NOT APPLE)
     target_link_libraries(lordpad PRIVATE util)
+endif()
+
+# Windows: subsistema GUI (sem janela de console acompanhando o app).
+if(WIN32)
+    set_target_properties(lordpad PROPERTIES WIN32_EXECUTABLE ON)
 endif()
 
 # Install

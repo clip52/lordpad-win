@@ -7,7 +7,9 @@
 #include <QStringConverter>
 #include <QStringList>
 
+#ifndef LORDPAD_NO_UCHARDET
 #include <uchardet/uchardet.h>
+#endif
 
 namespace FileIO {
 
@@ -152,6 +154,12 @@ QString detectEncoding(const QByteArray& sample)
         return QString();
     }
 
+#ifdef LORDPAD_NO_UCHARDET
+    // Sem uchardet (ex.: build Windows MinGW): deixa o detector estrito de UTF-8
+    // a montante decidir; aqui só sinalizamos "não sei", e o chamador cai no
+    // fallback do Qt (QStringConverter / Latin-1).
+    return QString();
+#else
     uchardet_t ud = uchardet_new();
     if (!ud) {
         return QString();
@@ -168,6 +176,7 @@ QString detectEncoding(const QByteArray& sample)
     }
     uchardet_delete(ud);
     return result;
+#endif
 }
 
 QByteArray transcodeToUtf8(const QByteArray& bytes, const QString& fromEncoding)

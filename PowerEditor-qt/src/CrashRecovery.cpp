@@ -23,8 +23,12 @@
 #include <QRegularExpression>
 #include <QDebug>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <signal.h>   // kill()
 #include <errno.h>
+#endif
 
 namespace {
 constexpr int    kSnapshotIntervalMs = 10 * 1000;
@@ -148,9 +152,19 @@ bool CrashRecovery::pidAlive(qint64 pid) const
 {
     if (pid <= 0) return false;
     if (pid == m_pid) return true;
+#ifdef _WIN32
+    HANDLE h = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
+                             static_cast<DWORD>(pid));
+    if (!h) return false;
+    DWORD code = 0;
+    const bool alive = ::GetExitCodeProcess(h, &code) && code == STILL_ACTIVE;
+    ::CloseHandle(h);
+    return alive;
+#else
     // kill(pid, 0) → 0 vivo; -1 + EPERM ainda significa que existe.
     if (::kill(static_cast<pid_t>(pid), 0) == 0) return true;
     return errno == EPERM;
+#endif
 }
 
 bool CrashRecovery::writeAtomic(const QString& path, const QByteArray& data) const
