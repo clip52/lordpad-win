@@ -175,6 +175,10 @@ build/
 build-*/
 cmake-build-*/
 
+# Cross-build Windows (MinGW) — bundle deployado, não versionar
+dist-win/
+lordpad-*-win64/
+
 # Python cache (WidgetGen.py + scripts)
 __pycache__/
 *.pyc
