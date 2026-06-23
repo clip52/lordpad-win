@@ -64,11 +64,12 @@ CheatsheetPanel::CheatsheetPanel(QWidget* parent) : QDockWidget(tr("Cheatsheets"
     if (dir.isEmpty() || !QDir(dir).exists()) {
         // Probe usual install/dev locations.
         const QStringList candidates = {
+            // Windows / portátil: pasta ao lado do executável.
             QCoreApplication::applicationDirPath() + QStringLiteral("/cheatsheets"),
-            QCoreApplication::applicationDirPath() + QStringLiteral("/../share/notepadpp-qt/cheatsheets"),
+            QCoreApplication::applicationDirPath() + QStringLiteral("/../share/lordpad/cheatsheets"),
             QStandardPaths::locate(QStandardPaths::AppDataLocation, QStringLiteral("cheatsheets"),
                                     QStandardPaths::LocateDirectory),
-            QStringLiteral("/usr/share/notepadpp-qt/cheatsheets"),
+            QStringLiteral("/usr/share/lordpad/cheatsheets"),
             // dev: build dir → repo/cheatsheets (sibling of build/)
             QCoreApplication::applicationDirPath() + QStringLiteral("/../PowerEditor-qt/cheatsheets"),
         };
